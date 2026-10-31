@@ -55,6 +55,7 @@ def main():
             chosen = next((g for g in candidates if g["state"] == "in"), None) or next((g for g in candidates if g["state"] == "post"), None) or (candidates[0] if candidates else None)
             doc = {
                 "sport": sport, "team": team, "updated": updated,
+                "updated_ms": int(dt.datetime.now(dt.timezone.utc).timestamp() * 1000),
                 "team1": chosen["team1"] if chosen else "",
                 "points1": chosen["points1"] if chosen else "",
                 "team2": chosen["team2"] if chosen else "",
