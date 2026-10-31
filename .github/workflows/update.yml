@@ -5,11 +5,16 @@ on:
     - cron: '*/5 * * * *'
 permissions:
   contents: write
+concurrency:
+  group: sports-feed-main
+  cancel-in-progress: false
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -22,5 +27,14 @@ jobs:
           git add docs/*.json
           if ! git diff --cached --quiet; then
             git commit -m 'Refresh sports score feeds'
-            git push
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              if git rebase origin/main && git push origin HEAD:main; then
+                exit 0
+              fi
+              git rebase --abort 2>/dev/null || true
+              sleep 2
+            done
+            echo 'Failed to publish scores after retries'
+            exit 1
           fi
