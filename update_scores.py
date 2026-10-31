@@ -30,7 +30,11 @@ def parse_event(event, code):
         return None
     status = event.get("status") or {}
     state = (status.get("type") or {}).get("state") or "pre"
+    away = next((t for t in teams if t.get("homeAway") == "away"), teams[0])
+    home = next((t for t in teams if t.get("homeAway") == "home"), teams[1])
     return {
+        "team1": abbr(away), "points1": str(away.get("score") or "0"),
+        "team2": abbr(home), "points2": str(home.get("score") or "0"),
         "state": state,
         "score": " ".join(f'{abbr(t)} {t.get("score", "0")}' for t in teams)[:52],
         "period": str(status.get("period") or 0),
@@ -51,6 +55,10 @@ def main():
             chosen = next((g for g in candidates if g["state"] == "in"), None) or next((g for g in candidates if g["state"] == "post"), None) or (candidates[0] if candidates else None)
             doc = {
                 "sport": sport, "team": team, "updated": updated,
+                "team1": chosen["team1"] if chosen else "",
+                "points1": chosen["points1"] if chosen else "",
+                "team2": chosen["team2"] if chosen else "",
+                "points2": chosen["points2"] if chosen else "",
                 "state": chosen["state"] if chosen else "none",
                 "score": chosen["score"] if chosen else "",
                 "period": chosen["period"] if chosen else "",
