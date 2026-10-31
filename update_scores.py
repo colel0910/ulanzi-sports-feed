@@ -4,13 +4,14 @@ import datetime as dt
 import json
 import pathlib
 import urllib.request
+from zoneinfo import ZoneInfo
 
 ROOT = pathlib.Path(__file__).parent / "docs"
 SPORTS = {"nfl": ("football", "nfl"), "mlb": ("baseball", "mlb"), "nba": ("basketball", "nba"), "nhl": ("hockey", "nhl")}
 
 def fetch(sport):
     category, league = SPORTS[sport]
-    date = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d")
+    date = dt.datetime.now(ZoneInfo("America/New_York")).strftime("%Y%m%d")
     url = f"https://site.api.espn.com/apis/site/v2/sports/{category}/{league}/scoreboard?limit=100&dates={date}"
     req = urllib.request.Request(url, headers={"User-Agent": "UlanziSportsFeed/1.0"})
     with urllib.request.urlopen(req, timeout=18) as response:
