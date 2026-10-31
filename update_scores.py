@@ -33,8 +33,8 @@ def parse_event(event, code):
     away = next((t for t in teams if t.get("homeAway") == "away"), teams[0])
     home = next((t for t in teams if t.get("homeAway") == "home"), teams[1])
     return {
-        "team1": abbr(away), "points1": str(away.get("score") or "0"),
-        "team2": abbr(home), "points2": str(home.get("score") or "0"),
+        "team1": abbr(away), "points1": str(away.get("score") if away.get("score") is not None else "0"),
+        "team2": abbr(home), "points2": str(home.get("score") if home.get("score") is not None else "0"),
         "state": state,
         "score": " ".join(f'{abbr(t)} {t.get("score", "0")}' for t in teams)[:52],
         "period": str(status.get("period") or 0),
