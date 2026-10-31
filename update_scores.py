@@ -56,6 +56,7 @@ def main():
             doc = {
                 "sport": sport, "team": team, "updated": updated,
                 "updated_ms": int(dt.datetime.now(dt.timezone.utc).timestamp() * 1000),
+                "updated_s": int(dt.datetime.now(dt.timezone.utc).timestamp()),
                 "team1": chosen["team1"] if chosen else "",
                 "points1": chosen["points1"] if chosen else "",
                 "team2": chosen["team2"] if chosen else "",
