@@ -10,6 +10,38 @@ const TZ = "America/New_York";
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname === "/eagles/next") {
+      const cache = caches.default;
+      const key = new Request(url.toString(), { method: "GET" });
+      const hit = await cache.match(key);
+      if (hit) return hit;
+      try {
+        const api = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams/phi/schedule";
+        const res = await fetch(api, { headers: { "User-Agent": "AWTRIXScoreboard/1.0" } });
+        if (!res.ok) throw Error("Schedule HTTP " + res.status);
+        const data = await res.json();
+        const now = Date.now();
+        const upcoming = (data.events || [])
+          .filter(e => {
+            const state = e.status?.type?.state || e.competitions?.[0]?.status?.type?.state || "pre";
+            return state === "pre" && Date.parse(e.date) > now;
+          })
+          .sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+        const event = upcoming[0];
+        const competitors = event?.competitions?.[0]?.competitors || [];
+        const opponent = competitors.find(t => String(t.team?.abbreviation || "").toUpperCase() !== "PHI");
+        const response = new Response(JSON.stringify({
+          state: event ? "pre" : "none",
+          kickoff_s: event ? Math.floor(Date.parse(event.date) / 1000) : 0,
+          opponent: String(opponent?.team?.abbreviation || ""),
+          updated_s: Math.floor(now / 1000)
+        }), { headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=300" } });
+        ctx.waitUntil(cache.put(key, response.clone()));
+        return response;
+      } catch (e) {
+        return new Response(JSON.stringify({error:"Schedule temporarily unavailable"}), {status:502,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
+      }
+    }
     const parts = url.pathname.split("/").filter(Boolean);
     if (parts.length !== 2 || !LEAGUES[parts[0]] || !/^[A-Z]{2,4}$/.test(parts[1])) {
       return new Response("Use /nba/PHI, /nfl/PHI, /mlb/PHI, or /nhl/PHI", { status: 400 });
