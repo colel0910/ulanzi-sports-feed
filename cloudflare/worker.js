@@ -10,6 +10,48 @@ const TZ = "America/New_York";
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname === "/eagles/roster") {
+      const index = Math.max(0, Math.min(199, Number.parseInt(url.searchParams.get("index") || "0", 10) || 0));
+      const cache = caches.default;
+      const key = new Request(url.toString(), {method:"GET"});
+      const hit = await cache.match(key);
+      if (hit) return hit;
+      try {
+        const base = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/";
+        const sr = await fetch(base + "teams/phi/schedule");
+        if (!sr.ok) throw Error("Schedule unavailable");
+        const schedule = await sr.json();
+        const now = Date.now();
+        const events = (schedule.events || []).filter(e => {
+          const t = Date.parse(e.date);
+          return Number.isFinite(t) && t >= now - 5 * 3600000;
+        }).sort((a,b) => Date.parse(a.date) - Date.parse(b.date));
+        const event = events[0];
+        const teams = event?.competitions?.[0]?.competitors || [];
+        const rival = teams.find(t => String(t.team?.abbreviation || "").toUpperCase() !== "PHI");
+        const opp = String(rival?.team?.abbreviation || "").toUpperCase();
+        if (!opp) return new Response(JSON.stringify({state:"none"}),{headers:{"Content-Type":"application/json"}});
+        const side = index % 2 === 0 ? "PHI" : opp;
+        const rr = await fetch(base + "teams/" + encodeURIComponent(side.toLowerCase()) + "/roster");
+        if (!rr.ok) throw Error("Roster unavailable");
+        const roster = await rr.json();
+        const players = (roster.athletes || []).flatMap(g => g.items || [])
+          .map(p => p.athlete || p)
+          .filter(p => p && (p.displayName || p.fullName));
+        const player = players[Math.floor(index / 2) % (players.length || 1)];
+        const response = new Response(JSON.stringify({
+          state: player ? "ok" : "none", team:side,
+          name:String(player?.shortName || player?.displayName || player?.fullName || "").slice(0,30),
+          number:String(player?.jersey || "").slice(0,4),
+          position:String(player?.position?.abbreviation || "").slice(0,5),
+          count:players.length, opponent:opp
+        }),{headers:{"Content-Type":"application/json","Cache-Control":"public, max-age=300"}});
+        ctx.waitUntil(cache.put(key,response.clone()));
+        return response;
+      } catch(e) {
+        return new Response(JSON.stringify({error:"Roster unavailable"}),{status:502,headers:{"Content-Type":"application/json"}});
+      }
+    }
     if (url.pathname === "/eagles/next") {
       const cache = caches.default;
       const key = new Request(url.toString(), { method: "GET" });
